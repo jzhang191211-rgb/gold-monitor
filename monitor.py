@@ -22,6 +22,10 @@ DEFAULT_CONFIG = {
     }
 }
 
+# 初始化AlertManager（只需初始化一次）
+# SERVERCHAN_KEY 现在可以是一个包含逗号的字符串，例如 "Key1,Key2"
+alert_manager = AlertManager(SERVERCHAN_KEY)
+
 def job():
     print(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] 开始执行监控任务...")
     
@@ -37,15 +41,13 @@ def job():
     print(f"当前金价: {gold_data['price']} (涨跌幅: {gold_data['change_percent']}%)")
     
     # 2. 检查提醒
-    alert_manager = AlertManager(SERVERCHAN_KEY)
-    
     # 检查金价波动
     alert_manager.check_gold_alerts(gold_data['price'], gold_data['change_percent'])
     
     print("监控任务执行完毕")
 
 if __name__ == "__main__":
-    print("黄金与基金监控服务已启动 (Railway版)")
+    print("黄金与基金监控服务已启动 (Railway版 - 多用户推送)")
     print("正在等待定时任务执行...")
     
     # 立即执行一次

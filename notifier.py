@@ -3,8 +3,14 @@ import time
 from data_fetcher import GoldFetcher
 
 class AlertManager:
-    def __init__(self, serverchan_key):
-        self.key = serverchan_key
+    def __init__(self, serverchan_keys):
+        # 支持传入单个Key字符串或Key列表
+        if isinstance(serverchan_keys, str):
+            # 如果是字符串，尝试按逗号分割
+            self.keys = [k.strip() for k in serverchan_keys.split(',') if k.strip()]
+        else:
+            self.keys = serverchan_keys
+            
         self.last_alert_time = 0
         self.alert_interval = 3600  # 相同类型的提醒间隔1小时
         self.gold_fetcher = GoldFetcher()
@@ -13,21 +19,22 @@ class AlertManager:
         self.ma_deviation_threshold = 0.05  # 均线偏离阈值 5%
 
     def send_wechat(self, title, content):
-        """发送微信通知"""
-        if not self.key:
+        """发送微信通知（支持群发）"""
+        if not self.keys:
             print("未配置Server酱Key，跳过发送")
             return
             
-        url = f"https://sctapi.ftqq.com/{self.key}.send"
-        data = {
-            "title": title,
-            "desp": content
-        }
-        try:
-            response = requests.post(url, data=data)
-            print(f"通知发送结果: {response.text}")
-        except Exception as e:
-            print(f"发送通知失败: {e}")
+        for key in self.keys:
+            url = f"https://sctapi.ftqq.com/{key}.send"
+            data = {
+                "title": title,
+                "desp": content
+            }
+            try:
+                response = requests.post(url, data=data)
+                print(f"Key[{key[:4]}...] 通知发送结果: {response.text}")
+            except Exception as e:
+                print(f"Key[{key[:4]}...] 发送通知失败: {e}")
 
     def check_gold_alerts(self, current_price, change_percent):
         """检查黄金相关提醒"""
