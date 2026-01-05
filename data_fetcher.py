@@ -5,7 +5,7 @@ import re
 
 class GoldFetcher:
     def __init__(self):
-        self.url = "https://futsseapi.eastmoney.com/list/variety/115/1?orderBy=zdf&sort=desc&pageSize=1&pageIndex=0&callbackName=jQuery3510974536254790065_1735654615222&_=1735654615223"
+        self.url = "https://push2.eastmoney.com/api/qt/stock/get?secid=118.AU9999&fields=f43,f44,f45,f46,f47,f48,f57,f58,f60,f169,f170,f171&ut=fa5fd1943c7b386f172d6893dbfba10b&_=1767237804067"
         self.history_url = "https://push2.eastmoney.com/api/qt/stock/get?secid=118.AU9999&fields=f43,f44,f45,f46,f47,f48,f57,f58,f60,f169,f170,f171&ut=fa5fd1943c7b386f172d6893dbfba10b&_=1767237804067"
     
     def get_price(self):
@@ -21,16 +21,23 @@ class GoldFetcher:
                 json_str = text[text.find('{'):text.rfind('}')+1]
                 data = json.loads(json_str)
                 
-                if 'list' in data and len(data['list']) > 0:
-                    item = data['list'][0]
+                if 'data' in data and data['data']:
+                    item = data['data']
+                    # 处理停盘或无数据的情况
+                    if item['f43'] == '-' or item['f43'] is None:
+                        # 尝试使用收盘价作为当前价格
+                        price = float(item['f60']) if item['f60'] != '-' else 0.0
+                    else:
+                        price = float(item['f43'])
+                        
                     return {
-                        "name": item['name'],
-                        "price": float(item['p']),
-                        "change": float(item['zd']),
-                        "change_percent": float(item['zdf']),
-                        "high": float(item['h']),
-                        "low": float(item['l']),
-                        "time": item['tm']
+                        "name": item['f58'],
+                        "price": price,
+                        "change": float(item['f169']) if item['f169'] != '-' else 0.0,
+                        "change_percent": float(item['f170']) if item['f170'] != '-' else 0.0,
+                        "high": float(item['f44']) if item['f44'] != '-' else price,
+                        "low": float(item['f45']) if item['f45'] != '-' else price,
+                        "time": str(time.time()) # 接口未返回时间，使用当前时间
                     }
             return None
         except Exception as e:
