@@ -26,17 +26,17 @@ class GoldFetcher:
                     # 处理停盘或无数据的情况
                     if item['f43'] == '-' or item['f43'] is None:
                         # 尝试使用收盘价作为当前价格
-                        price = float(item['f60']) if item['f60'] != '-' else 0.0
+                        price = float(item['f60']) / 100.0 if item['f60'] != '-' else 0.0
                     else:
-                        price = float(item['f43'])
+                        price = float(item['f43']) / 100.0 if item['f43'] != '-' else 0.0
                         
                     return {
                         "name": item['f58'],
                         "price": price,
-                        "change": float(item['f169']) if item['f169'] != '-' else 0.0,
-                        "change_percent": float(item['f170']) if item['f170'] != '-' else 0.0,
-                        "high": float(item['f44']) if item['f44'] != '-' else price,
-                        "low": float(item['f45']) if item['f45'] != '-' else price,
+                        "change": float(item['f169']) / 100.0 if item['f169'] != '-' else 0.0,
+                        "change_percent": float(item['f170']) / 100.0 if item['f170'] != '-' else 0.0,
+                        "high": float(item['f44']) / 100.0 if item['f44'] != '-' else price,
+                        "low": float(item['f45']) / 100.0 if item['f45'] != '-' else price,
                         "time": str(time.time()) # 接口未返回时间，使用当前时间
                     }
             return None
