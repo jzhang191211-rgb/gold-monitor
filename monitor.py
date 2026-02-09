@@ -7,6 +7,7 @@ from notifier import Notifier
 # 配置
 CHECK_INTERVAL = 60  # 检查间隔（秒）
 PRICE_CHANGE_THRESHOLD = 1.0  # 价格波动阈值（%）
+SECONDARY_CHANGE_THRESHOLD = 0.5 # 二次报警阈值（%）：在已报警基础上，价格再次波动多少才触发新报警
 MA20_DEVIATION_THRESHOLD = 5.0  # 均线偏离阈值（%）
 
 def main():
@@ -55,16 +56,40 @@ def main():
                     print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] 当前金价: {current_price}, 涨跌幅: {change_percent}%")
                     
                     # 1. 涨跌幅报警
-                    # 如果涨跌幅超过阈值，且距离上次通知已经过了一段时间（例如1小时），或者价格相比上次通知又有较大变化
+                    # 逻辑优化：
+                    # 1. 基础条件：涨跌幅绝对值 >= 1%
+                    # 2. 触发条件（满足其一即可）：
+                    #    a. 首次报警（last_notify_price 为 0）
+                    #    b. 价格相比上次报警时的价格，波动幅度超过 0.5% (SECONDARY_CHANGE_THRESHOLD)
+                    #    c. 距离上次报警超过 4 小时（作为兜底，避免长时间不提醒）
+                    
                     if abs(change_percent) >= PRICE_CHANGE_THRESHOLD:
-                        # 简单的防骚扰逻辑：如果价格变化超过阈值，且距离上次通知超过1小时
-                        if time.time() - last_notify_time > 3600:
+                        should_notify = False
+                        reason = ""
+                        
+                        if last_notify_price == 0:
+                            should_notify = True
+                            reason = "首次触发阈值"
+                        else:
+                            # 计算相比上次通知时的价格变化幅度
+                            price_diff_percent = abs((current_price - last_notify_price) / last_notify_price * 100)
+                            
+                            if price_diff_percent >= SECONDARY_CHANGE_THRESHOLD:
+                                should_notify = True
+                                reason = f"价格再次波动 {price_diff_percent:.2f}%"
+                            elif time.time() - last_notify_time > 14400: # 4小时兜底
+                                should_notify = True
+                                reason = "距离上次通知已过4小时"
+                        
+                        if should_notify:
                             title = f"黄金价格波动提醒: {change_percent}%"
-                            content = f"当前金价: {current_price}\n涨跌幅: {change_percent}%\n时间: {now.strftime('%Y-%m-%d %H:%M:%S')}"
+                            content = f"当前金价: {current_price}\n涨跌幅: {change_percent}%\n触发原因: {reason}\n时间: {now.strftime('%Y-%m-%d %H:%M:%S')}"
                             notifier.send(title, content)
                             last_notify_price = current_price
                             last_notify_time = time.time()
-                            print("已发送涨跌幅通知")
+                            print(f"已发送涨跌幅通知 ({reason})")
+                        else:
+                            print(f"满足阈值但未达二次波动条件 (上次: {last_notify_price}, 当前: {current_price})")
                 else:
                     # 数据未更新，跳过
                     pass
