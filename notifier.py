@@ -3,13 +3,22 @@ import os
 
 class Notifier:
     def __init__(self):
-        # 从环境变量获取SendKey，支持多个Key用逗号分隔
-        self.send_keys = os.environ.get("SERVERCHAN_SENDKEY", "").split(",")
+        # 尝试从多个环境变量获取SendKey
+        keys_str = os.environ.get("SERVERCHAN_SENDKEY", "")
+        if not keys_str:
+            keys_str = os.environ.get("SENDKEY", "")
+            
+        # 支持多个Key用逗号分隔
+        self.send_keys = keys_str.split(",")
         # 过滤空字符串
         self.send_keys = [key.strip() for key in self.send_keys if key.strip()]
         
         if not self.send_keys:
-            print("警告: 未设置 SERVERCHAN_SENDKEY 环境变量")
+            print("警告: 未检测到 SendKey 环境变量。请在 Railway 设置 SERVERCHAN_SENDKEY 或 SENDKEY")
+            # 打印当前所有环境变量名（不打印值），帮助排查
+            print(f"当前环境变量列表: {list(os.environ.keys())}")
+        else:
+            print(f"成功加载 {len(self.send_keys)} 个 SendKey")
 
     def send(self, title, content):
         if not self.send_keys:
