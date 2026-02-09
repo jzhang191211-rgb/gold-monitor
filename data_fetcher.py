@@ -5,7 +5,7 @@ import re
 
 class GoldFetcher:
     def __init__(self):
-        self.url = "https://push2.eastmoney.com/api/qt/stock/get?secid=118.AU9999&fields=f43,f44,f45,f46,f47,f48,f57,f58,f60,f169,f170,f171&ut=fa5fd1943c7b386f172d6893dbfba10b&_=1767237804067"
+        self.url = "https://push2.eastmoney.com/api/qt/stock/get?secid=118.AU9999&fields=f43,f44,f45,f46,f47,f48,f57,f58,f60,f86,f169,f170,f171&ut=fa5fd1943c7b386f172d6893dbfba10b&_=1767237804067"
         self.history_url = "https://push2.eastmoney.com/api/qt/stock/get?secid=118.AU9999&fields=f43,f44,f45,f46,f47,f48,f57,f58,f60,f169,f170,f171&ut=fa5fd1943c7b386f172d6893dbfba10b&_=1767237804067"
     
     def get_price(self):
@@ -37,7 +37,7 @@ class GoldFetcher:
                         "change_percent": float(item['f170']) / 100.0 if item['f170'] != '-' else 0.0,
                         "high": float(item['f44']) / 100.0 if item['f44'] != '-' else price,
                         "low": float(item['f45']) / 100.0 if item['f45'] != '-' else price,
-                        "time": str(time.time()) # 接口未返回时间，使用当前时间
+                        "time": str(item['f86']) if 'f86' in item else str(time.time())
                     }
             return None
         except Exception as e:
