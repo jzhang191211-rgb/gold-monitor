@@ -21,8 +21,9 @@ def main():
     last_notify_price = 0
     last_notify_time = 0
     
-    # 记录上一次获取的数据时间戳，用于判断数据是否更新
-    last_data_timestamp = None
+    # 记录上一次获取的数据状态，用于判断数据是否更新
+    last_data_price = None
+    last_data_change = None
     
     # 心跳计数器
     heartbeat_counter = 0
@@ -51,16 +52,17 @@ def main():
             
             if gold_data:
                 # 数据更新检测
-                # 接口返回的数据中通常包含时间戳或时间字符串，这里我们假设gold_data['time']是数据时间
-                # 如果数据时间没有变化，说明市场没有新数据（可能是休市或暂停交易），不应重复报警
-                current_data_timestamp = gold_data.get('time')
+                # 由于接口返回的时间戳(f86)可能长时间不更新，改用价格和涨跌幅来判断数据是否变化
+                current_price = gold_data['price']
+                change_percent = gold_data['change_percent']
                 
-                # 如果是第一次获取，或者数据时间戳发生了变化，才进行处理
-                if last_data_timestamp is None or current_data_timestamp != last_data_timestamp:
-                    last_data_timestamp = current_data_timestamp
+                # 如果是第一次获取，或者价格/涨跌幅发生了变化，才进行处理
+                if (last_data_price is None or 
+                    current_price != last_data_price or 
+                    change_percent != last_data_change):
                     
-                    current_price = gold_data['price']
-                    change_percent = gold_data['change_percent']
+                    last_data_price = current_price
+                    last_data_change = change_percent
                     
                     print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] 当前金价: {current_price}, 涨跌幅: {change_percent}%")
                     
