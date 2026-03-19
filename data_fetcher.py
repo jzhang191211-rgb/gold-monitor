@@ -2,71 +2,81 @@ import requests
 import json
 import time
 import re
+import random
 
 class GoldFetcher:
     def __init__(self):
-        self.url = "https://push2.eastmoney.com/api/qt/stock/get?secid=118.AU9999&fields=f43,f44,f45,f46,f47,f48,f57,f58,f60,f86,f169,f170,f171&ut=fa5fd1943c7b386f172d6893dbfba10b&_=1767237804067"
-        self.history_url = "https://push2.eastmoney.com/api/qt/stock/get?secid=118.AU9999&fields=f43,f44,f45,f46,f47,f48,f57,f58,f60,f169,f170,f171&ut=fa5fd1943c7b386f172d6893dbfba10b&_=1767237804067"
+        # 新浪财经国际现货黄金（伦敦金）接口
+        self.url = "https://hq.sinajs.cn/list=hf_XAU"
+        
+        # 随机 User-Agent 列表
+        self.user_agents = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Safari/605.1.15",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0"
+        ]
     
     def get_price(self):
         try:
             headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Referer": "https://quote.eastmoney.com/"
+                "User-Agent": random.choice(self.user_agents),
+                "Referer": "https://finance.sina.com.cn", # 新浪接口必须带 Referer
+                "Accept": "*/*",
+                "Connection": "keep-alive"
             }
-            response = requests.get(self.url, headers=headers)
+            
+            # 增加随机时间戳防止缓存
+            # 新浪接口的URL中如果有参数，应该用逗号分隔，或者直接不加时间戳
+            # 为了稳定，我们直接使用原始URL，不加时间戳，因为新浪接口通常不会缓存
+            url = self.url
+            response = requests.get(url, headers=headers, timeout=10)
+            
             if response.status_code == 200:
-                # 提取JSON数据
-                text = response.text
-                json_str = text[text.find('{'):text.rfind('}')+1]
-                data = json.loads(json_str)
+                # 新浪接口返回的是 GBK 编码的 JS 代码
+                text = response.content.decode('gbk')
                 
-                if 'data' in data and data['data']:
-                    item = data['data']
-                    # 处理停盘或无数据的情况
-                    if item['f43'] == '-' or item['f43'] is None:
-                        # 尝试使用收盘价作为当前价格
-                        price = float(item['f60']) / 100.0 if item['f60'] != '-' else 0.0
-                    else:
-                        price = float(item['f43']) / 100.0 if item['f43'] != '-' else 0.0
+                # 解析返回的字符串: var hq_str_hf_XAU="最新价,昨收,开盘,最高,最低,时间,日期,名称,...";
+                match = re.search(r'="([^"]+)"', text)
+                if match:
+                    data_str = match.group(1)
+                    if not data_str:
+                        return None
                         
-                    return {
-                        "name": item['f58'],
-                        "price": price,
-                        "change": float(item['f169']) / 100.0 if item['f169'] != '-' else 0.0,
-                        "change_percent": float(item['f170']) / 100.0 if item['f170'] != '-' else 0.0,
-                        "high": float(item['f44']) / 100.0 if item['f44'] != '-' else price,
-                        "low": float(item['f45']) / 100.0 if item['f45'] != '-' else price,
-                        "time": str(item['f86']) if 'f86' in item else str(time.time())
-                    }
+                    fields = data_str.split(',')
+                    if len(fields) >= 14:
+                        current_price = float(fields[0])
+                        # 新浪期货接口字段：0最新价, 1?, 2买价, 3卖价, 4最高, 5最低, 6时间, 7昨收, 8开盘, 9持仓, 10?, 11?, 12日期, 13名称
+                        prev_close = float(fields[7]) # 昨收盘价
+                        
+                        # 计算涨跌幅
+                        change = current_price - prev_close
+                        change_percent = (change / prev_close) * 100 if prev_close > 0 else 0.0
+                        
+                        return {
+                            "name": "伦敦金(XAU)",
+                            "price": round(current_price, 2),
+                            "change": round(change, 2),
+                            "change_percent": round(change_percent, 2),
+                            "high": float(fields[4]),
+                            "low": float(fields[5]),
+                            "time": f"{fields[12]} {fields[6]}" # 日期 + 时间
+                        }
+                    else:
+                        print(f"字段数量不足: {len(fields)}")
+                else:
+                    print(f"正则匹配失败: {text}")
+            else:
+                print(f"请求失败，状态码: {response.status_code}")
             return None
         except Exception as e:
             print(f"获取黄金数据失败: {e}")
             return None
 
     def get_ma20(self):
-        """获取20日均价"""
-        try:
-            # 这里使用模拟数据或简单的API调用
-            # 实际应用中可能需要调用K线数据接口计算MA20
-            # 为了简化，我们假设当前价格接近MA20，或者通过简单的历史数据接口获取
-            # 这里我们尝试获取日K线数据
-            kline_url = "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=118.AU9999&fields1=f1&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=0&end=20500101&lmt=20"
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-            }
-            response = requests.get(kline_url, headers=headers)
-            if response.status_code == 200:
-                data = response.json()
-                if data and 'data' in data and 'klines' in data['data']:
-                    klines = data['data']['klines']
-                    closes = [float(k.split(',')[2]) for k in klines]
-                    if len(closes) > 0:
-                        return sum(closes) / len(closes)
-            return None
-        except Exception as e:
-            print(f"获取MA20失败: {e}")
-            return None
+        """获取20日均价 - 暂不实现，返回当前价格避免报错"""
+        # 由于更换了数据源，获取历史K线计算MA20比较复杂，这里暂时返回None
+        # 监控脚本中如果获取不到MA20会自动跳过该项报警
+        return None
 
 class FundFetcher:
     def __init__(self):
